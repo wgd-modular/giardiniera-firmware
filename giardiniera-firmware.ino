@@ -12,28 +12,37 @@
 #define MUX_SIG0 A0 // PC0
 #define MUX_SIG1 A1 // PC1
 #define MUX_SIG2 A2 // PC2
+#define BUTTON_PIN A3 // PC3
 
 #define CLOCK_IN 9 // PB1
+#define RESET_IN_A 8 // PB0
+#define RESET_IN_B 10 // PB2
 #define GATE_OUT1 5 // PD5
 #define GATE_OUT2 6 // PD6
 #define GATE_OUT3 7 // PD7
+
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_MCP4728 dac;
 
 volatile bool clockState = LOW;
 volatile bool lastClockState = LOW;
+volatile bool ResetAState = LOW;
+volatile bool lastResetAState = LOW;
+volatile bool ResetBState = LOW;
+volatile bool lastResetBState = LOW;
 int step1 = 0;
 int step2 = 0;
 
 int sequenceA[NUM_LEDS];
 int sequenceB[NUM_LEDS];
-int divSeqA = 2;
-int divSeqB = 4;
+int divSeqA = 1;
+int divSeqB = 1;
 int probSeq = 50;
 int cvDivA = 0;
 int cvDivB = 0;
 int cvProb = 0;
+int scalingFactor = 4095;
 
 void setup() {
   strip.begin();
@@ -45,6 +54,7 @@ void setup() {
   pinMode(GATE_OUT1, OUTPUT);
   pinMode(GATE_OUT2, OUTPUT);
   pinMode(GATE_OUT3, OUTPUT);
+  pinMode(BUTTON_PIN, INPUT);
 
   // Initialize DAC (MCP4728)
   if (!dac.begin()) {
@@ -58,14 +68,27 @@ void setup() {
 
 void loop() {
   clockState = digitalRead(CLOCK_IN);
+  ResetAState = digitalRead(RESET_IN_A);
+  ResetBState = digitalRead(RESET_IN_B);
+
+  if (lastResetAState == LOW && ResetAState == HIGH) {
+    step1 = 0;
+  }
+
+  if (lastResetBState == LOW && ResetBState == HIGH) {
+    step2 = 0;
+  }
 
   if (lastClockState == LOW && clockState == HIGH) {
-    // Rising edge detected
     handleClockPulse();
   }
 
   // Update controls
   readControls();
+
+  if (digitalRead(BUTTON_PIN) == LOW) {
+    updateScalingVisualization();
+  }
 
   lastClockState = clockState;
 }
@@ -92,7 +115,13 @@ void handleClockPulse() {
 
   // Set gate outputs based on conditions
   if (sequenceA[step1] > sequenceB[step2]) {
+    if (counterA == 0) {
+      digitalWrite(GATE_OUT1, HIGH);
+    }
+  } else {
+    if (counterB == 0) {
     digitalWrite(GATE_OUT1, HIGH);
+  }
   }
 
   if (counterA == 0) {
@@ -103,7 +132,7 @@ void handleClockPulse() {
     digitalWrite(GATE_OUT3, HIGH);
   }
 
-  delay(10); // Adjustable for gate width
+  delay(20); // Adjustable for gate width
 
   digitalWrite(GATE_OUT1, LOW);
   digitalWrite(GATE_OUT2, LOW);
@@ -111,21 +140,21 @@ void handleClockPulse() {
 }
 
 void updateLEDs() {
-  strip.clear();
-
-  for (int i = 0; i < NUM_LEDS; i++) {
-    if (i == step1 && i == step2) {
-      // If both sequences are on the same step, mix colors
-      strip.setPixelColor(i, strip.Color(128, 0, 128)); // Purple as a mix of Sequence 1 and 2 colors
-    } else if (i == step1) {
-      // Sequence 1: Cyan
-      strip.setPixelColor(i, strip.Color(0, 255, 255));
-    } else if (i == step2) {
-      // Sequence 2: Lime Green
-      strip.setPixelColor(i, strip.Color(0, 255, 0));
+  if (!(digitalRead(BUTTON_PIN) == LOW)) {
+    strip.clear();
+    for (int i = 0; i < NUM_LEDS; i++) {
+      if (i == step1 && i == step2) {
+        // If both sequences are on the same step, mix colors
+        strip.setPixelColor(i, strip.Color(128, 0, 128)); // Purple as a mix of Sequence 1 and 2 colors
+      } else if (i == step1) {
+        // Sequence 1: Cyan
+        strip.setPixelColor(i, strip.Color(0, 200, 200));
+      } else if (i == step2) {
+        // Sequence 2: Red
+        strip.setPixelColor(i, strip.Color(200, 20, 0));
+      }
     }
   }
-
   strip.show();
 }
 
@@ -137,32 +166,59 @@ void readControls() {
   }
 
   // Read other controls from the third multiplexer
-  divSeqA = map(readMux(MUX_SIG2, 0), 0, 1023, 1, 16); // Map to 1, 2, 3, 4, 8, 16
-  divSeqB = map(readMux(MUX_SIG2, 1), 0, 1023, 1, 16);
-  probSeq = map(readMux(MUX_SIG2, 2), 0, 1023, 0, 100); // Probability 0-100%
+  divSeqA = mapToDivisions(readMux(MUX_SIG2, 0)); // Map to 1, 2, 3, 4, 8, 16
+  divSeqB = mapToDivisions(readMux(MUX_SIG2, 1));
   cvDivA = readMux(MUX_SIG2, 3);
   cvDivB = readMux(MUX_SIG2, 4);
   cvProb = readMux(MUX_SIG2, 5);
+  if (digitalRead(BUTTON_PIN) == LOW) {
+    scalingFactor = readMux(MUX_SIG2, 2);
+  } else {
+    probSeq = map(readMux(MUX_SIG2, 2), 0, 1023, 0, 100); // Probability 0-100%
+  }
+}
+
+int mapToDivisions(int value) {
+  if (value < 170) return 1;
+  if (value < 340) return 2;
+  if (value < 510) return 3;
+  if (value < 680) return 4;
+  if (value < 850) return 8;
+  return 16;
 }
 
 int readMux(int sigPin, int channel) {
   digitalWrite(MUX_S0, bitRead(channel, 0));
   digitalWrite(MUX_S1, bitRead(channel, 1));
   digitalWrite(MUX_S2, bitRead(channel, 2));
-  delayMicroseconds(2); // Allow settling time
+  delayMicroseconds(50); // Allow settling time
   return analogRead(sigPin);
 }
 
 void outputSequenceToDAC() {
   dac.setChannelValue(MCP4728_CHANNEL_A, sequenceA[step1] << 4); // Scale 0-255 to 0-4095
   dac.setChannelValue(MCP4728_CHANNEL_B, sequenceB[step2] << 4);
-  dac.setChannelValue(MCP4728_CHANNEL_C, random(0, 4096)); // Random value
-  dac.setChannelValue(MCP4728_CHANNEL_D, random(0, 4096)); // Random value
+  int mixedValue = (sequenceA[step1] + sequenceB[step2]) / 2;
+  dac.setChannelValue(MCP4728_CHANNEL_C, mixedValue << 4);
+  if (random(0, 100) < probSeq) {
+    dac.setChannelValue(MCP4728_CHANNEL_D, sequenceB[step2] << 4); // Use Sequence B
+  } else {
+    dac.setChannelValue(MCP4728_CHANNEL_D, sequenceA[step1] << 4); // Use Sequence A
+  }
+}
+
+void updateScalingVisualization() {
+  strip.clear();
+  int litLEDs = map(scalingFactor, 0, 1023, 0, NUM_LEDS);
+  for (int i = 0; i < litLEDs; i++) {
+    strip.setPixelColor(i, strip.Color(40, 0, 170));
+  }
+  strip.show();
 }
 
 void startupAnimation() {
   // Pulsing animation with RGB wavy effect, max duration ~3 seconds
-  for (int pulse = 0; pulse < 6; pulse++) { // 6 pulses, ~3 seconds
+  for (int pulse = 0; pulse < 3; pulse++) { // 6 pulses, ~3 seconds
     for (int intensity = 0; intensity <= 255; intensity += 15) {
       for (int i = 0; i < strip.numPixels(); i++) {
         int wave = (intensity + i * 30) % 255; // Create a wavy effect
