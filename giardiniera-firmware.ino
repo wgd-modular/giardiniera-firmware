@@ -120,8 +120,8 @@ void handleClockPulse() {
     }
   } else {
     if (counterB == 0) {
-    digitalWrite(GATE_OUT1, HIGH);
-  }
+      digitalWrite(GATE_OUT1, HIGH);
+    }
   }
 
   if (counterA == 0) {
@@ -161,8 +161,8 @@ void updateLEDs() {
 void readControls() {
   // Read pots for sequences A and B
   for (int i = 0; i < NUM_LEDS; i++) {
-    sequenceA[i] = readMux(MUX_SIG0, i) / 16; // Scale 0-1023 to 0-63
-    sequenceB[i] = readMux(MUX_SIG1, i) / 16;
+    sequenceA[i] = readMux(MUX_SIG0, i);
+    sequenceB[i] = readMux(MUX_SIG1, i);
   }
 
   // Read other controls from the third multiplexer
@@ -196,14 +196,16 @@ int readMux(int sigPin, int channel) {
 }
 
 void outputSequenceToDAC() {
-  dac.setChannelValue(MCP4728_CHANNEL_A, sequenceA[step1] << 4); // Scale 0-255 to 0-4095
-  dac.setChannelValue(MCP4728_CHANNEL_B, sequenceB[step2] << 4);
-  int mixedValue = (sequenceA[step1] + sequenceB[step2]) / 2;
-  dac.setChannelValue(MCP4728_CHANNEL_C, mixedValue << 4);
+  int seq_a_out = sequenceA[step1] << 2; // Scale 0-1023 to 0-4095
+  int seq_b_out = sequenceB[step2] << 2;
+  dac.setChannelValue(MCP4728_CHANNEL_A, seq_a_out); 
+  dac.setChannelValue(MCP4728_CHANNEL_B, seq_b_out);
+  int mixedValue = (seq_a_out + seq_b_out) / 2;
+  dac.setChannelValue(MCP4728_CHANNEL_C, mixedValue);
   if (random(0, 100) < probSeq) {
-    dac.setChannelValue(MCP4728_CHANNEL_D, sequenceB[step2] << 4); // Use Sequence B
+    dac.setChannelValue(MCP4728_CHANNEL_D, seq_a_out); // Use Sequence B
   } else {
-    dac.setChannelValue(MCP4728_CHANNEL_D, sequenceA[step1] << 4); // Use Sequence A
+    dac.setChannelValue(MCP4728_CHANNEL_D, seq_b_out); // Use Sequence A
   }
 }
 
