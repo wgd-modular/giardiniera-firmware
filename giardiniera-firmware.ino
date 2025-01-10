@@ -71,18 +71,9 @@ void loop() {
 }
 
 void handleClockPulse() {
-  // Mirror clock on gate outputs with the same gate width
-  digitalWrite(GATE_OUT1, HIGH);
-  digitalWrite(GATE_OUT2, HIGH);
-  digitalWrite(GATE_OUT3, HIGH);
-  delay(10); // Adjustable for gate width
-  digitalWrite(GATE_OUT1, LOW);
-  digitalWrite(GATE_OUT2, LOW);
-  digitalWrite(GATE_OUT3, LOW);
-
-  // Advance sequence steps based on clock division
   static int counterA = 0, counterB = 0;
 
+  // Advance sequence steps based on clock division
   if (++counterA >= divSeqA) {
     counterA = 0;
     step1 = (step1 + 1) % NUM_LEDS;
@@ -98,6 +89,25 @@ void handleClockPulse() {
 
   // Output sequence values to DAC
   outputSequenceToDAC();
+
+  // Set gate outputs based on conditions
+  if (sequenceA[step1] > sequenceB[step2]) {
+    digitalWrite(GATE_OUT1, HIGH);
+  }
+
+  if (counterA == 0) {
+    digitalWrite(GATE_OUT2, HIGH);
+  }
+
+  if (counterB == 0) {
+    digitalWrite(GATE_OUT3, HIGH);
+  }
+
+  delay(10); // Adjustable for gate width
+
+  digitalWrite(GATE_OUT1, LOW);
+  digitalWrite(GATE_OUT2, LOW);
+  digitalWrite(GATE_OUT3, LOW);
 }
 
 void updateLEDs() {
@@ -127,8 +137,8 @@ void readControls() {
   }
 
   // Read other controls from the third multiplexer
-  divSeqA = map(readMux(MUX_SIG2, 0), 0, 1023, 2, 16); // Map to 2, 4, 8, 16
-  divSeqB = map(readMux(MUX_SIG2, 1), 0, 1023, 2, 16);
+  divSeqA = map(readMux(MUX_SIG2, 0), 0, 1023, 1, 16); // Map to 1, 2, 3, 4, 8, 16
+  divSeqB = map(readMux(MUX_SIG2, 1), 0, 1023, 1, 16);
   probSeq = map(readMux(MUX_SIG2, 2), 0, 1023, 0, 100); // Probability 0-100%
   cvDivA = readMux(MUX_SIG2, 3);
   cvDivB = readMux(MUX_SIG2, 4);
