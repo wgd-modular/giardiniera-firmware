@@ -42,7 +42,8 @@ int probSeq = 50;
 int cvDivA = 0;
 int cvDivB = 0;
 int cvProb = 0;
-int scalingFactor = 4095;
+int scalingFactorA = 1023;
+int scalingFactorB = 1023;
 
 void setup() {
   strip.begin();
@@ -87,7 +88,12 @@ void loop() {
   readControls();
 
   if (digitalRead(BUTTON_PIN) == LOW) {
-    updateScalingVisualization();
+    if(hasPotMoved(0)) {
+      updateScalingVisualization(scalingFactorA, 200, 20, 0);
+    } else if (hasPotMoved(1)) {
+      updateScalingVisualization(scalingFactorB, 0, 200, 200);
+    }
+    
   }
 
   lastClockState = clockState;
@@ -165,17 +171,24 @@ void readControls() {
     sequenceB[i] = readMux(MUX_SIG1, i);
   }
 
-  // Read other controls from the third multiplexer
-  divSeqA = mapToDivisions(readMux(MUX_SIG2, 0)); // Map to 1, 2, 3, 4, 8, 16
-  divSeqB = mapToDivisions(readMux(MUX_SIG2, 1));
+  probSeq = map(readMux(MUX_SIG2, 2), 0, 1023, 0, 100);
   cvDivA = readMux(MUX_SIG2, 3);
   cvDivB = readMux(MUX_SIG2, 4);
   cvProb = readMux(MUX_SIG2, 5);
-  if (digitalRead(BUTTON_PIN) == LOW) {
-    scalingFactor = readMux(MUX_SIG2, 2);
-  } else {
-    probSeq = map(readMux(MUX_SIG2, 2), 0, 1023, 0, 100); // Probability 0-100%
+  if(hasPotMoved(0)) {
+    if (digitalRead(BUTTON_PIN) == LOW) {
+      scalingFactorA = readMux(MUX_SIG2, 0);
+    } else {
+      divSeqA = mapToDivisions(readMux(MUX_SIG2, 0));
+    }
+  } else if (hasPotMoved(1)) {
+    if (digitalRead(BUTTON_PIN) == LOW) {
+      scalingFactorB = readMux(MUX_SIG2, 1);
+    } else {
+      divSeqB = mapToDivisions(readMux(MUX_SIG2, 1));
+    }
   }
+  
 }
 
 int mapToDivisions(int value) {
@@ -196,8 +209,8 @@ int readMux(int sigPin, int channel) {
 }
 
 void outputSequenceToDAC() {
-  int seq_a_out = sequenceA[step1] << 2; // Scale 0-1023 to 0-4095
-  int seq_b_out = sequenceB[step2] << 2;
+  int seq_a_out = sequenceA[step1] * (scalingFactorA / 255);
+  int seq_b_out = sequenceB[step2] * (scalingFactorB / 255);
   dac.setChannelValue(MCP4728_CHANNEL_A, seq_a_out); 
   dac.setChannelValue(MCP4728_CHANNEL_B, seq_b_out);
   int mixedValue = (seq_a_out + seq_b_out) / 2;
@@ -209,11 +222,11 @@ void outputSequenceToDAC() {
   }
 }
 
-void updateScalingVisualization() {
+void updateScalingVisualization(int value, int r, int g, int b) {
   strip.clear();
-  int litLEDs = map(scalingFactor, 0, 1023, 0, NUM_LEDS);
+  int litLEDs = map(value, 0, 980, 0, NUM_LEDS);
   for (int i = 0; i < litLEDs; i++) {
-    strip.setPixelColor(i, strip.Color(40, 0, 170));
+    strip.setPixelColor(i, strip.Color(r, g, b));
   }
   strip.show();
 }
@@ -238,4 +251,12 @@ void startupAnimation() {
       delay(20);
     }
   }
+}
+
+bool hasPotMoved(int muxChannel) {
+  int firstValue = readMux(MUX_SIG2, muxChannel);
+  delay(5);
+  int secondValue = readMux(MUX_SIG2, muxChannel);
+
+  return abs(secondValue - firstValue) > 2; // Threshold for movement detection
 }
