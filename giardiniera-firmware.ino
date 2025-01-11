@@ -170,22 +170,22 @@ void readControls() {
     sequenceA[i] = readMux(MUX_SIG0, i);
     sequenceB[i] = readMux(MUX_SIG1, i);
   }
-
-  probSeq = map(readMux(MUX_SIG2, 2), 0, 1023, 0, 100);
-  cvDivA = readMux(MUX_SIG2, 3);
-  cvDivB = readMux(MUX_SIG2, 4);
-  cvProb = readMux(MUX_SIG2, 5);
+  cvProb = readMux(MUX_SIG2, 5) * 1.7 - 511;
+  probSeq = map(readMux(MUX_SIG2, 2) + cvProb, 0, 1023, 0, 100);
+  cvDivA = readMux(MUX_SIG2, 3) * 1.7 - 511;
+  cvDivB = readMux(MUX_SIG2, 4) * 1.7 - 511;
+  
   if(hasPotMoved(0)) {
     if (digitalRead(BUTTON_PIN) == LOW) {
       scalingFactorA = readMux(MUX_SIG2, 0);
     } else {
-      divSeqA = mapToDivisions(readMux(MUX_SIG2, 0));
+      divSeqA = mapToDivisions((readMux(MUX_SIG2, 0) + cvDivA));
     }
   } else if (hasPotMoved(1)) {
     if (digitalRead(BUTTON_PIN) == LOW) {
       scalingFactorB = readMux(MUX_SIG2, 1);
     } else {
-      divSeqB = mapToDivisions(readMux(MUX_SIG2, 1));
+      divSeqB = mapToDivisions((readMux(MUX_SIG2, 1) + cvDivB));
     }
   }
   
@@ -224,12 +224,28 @@ void outputSequenceToDAC() {
 
 void updateScalingVisualization(int value, int r, int g, int b) {
   strip.clear();
-  int litLEDs = map(value, 0, 980, 0, NUM_LEDS);
-  for (int i = 0; i < litLEDs; i++) {
+  
+  // Map the value to determine the number of lit LEDs
+  float scaledValue = map(value, 0, 980, 0, NUM_LEDS * 100) / 100.0; // Scaled to have fractional precision
+  int fullLitLEDs = (int)scaledValue; // Integer part: fully lit LEDs
+  float fractionalPart = scaledValue - fullLitLEDs; // Fractional part: brightness for the last LED
+  
+  // Light up fully lit LEDs
+  for (int i = 0; i < fullLitLEDs; i++) {
     strip.setPixelColor(i, strip.Color(r, g, b));
   }
+
+  // Adjust brightness of the next LED based on fractional part
+  if (fullLitLEDs < NUM_LEDS) {
+    int dimmedR = (int)(r * fractionalPart);
+    int dimmedG = (int)(g * fractionalPart);
+    int dimmedB = (int)(b * fractionalPart);
+    strip.setPixelColor(fullLitLEDs, strip.Color(dimmedR, dimmedG, dimmedB));
+  }
+
   strip.show();
 }
+
 
 void startupAnimation() {
   // Pulsing animation with RGB wavy effect, max duration ~3 seconds
