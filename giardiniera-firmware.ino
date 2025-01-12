@@ -46,7 +46,7 @@ int scalingFactorA = 1023;
 int scalingFactorB = 1023;
 int now = 0;
 
-const int GATE_WIDTH = 300;
+const int GATE_WIDTH = 5000;
 
 void setup() {
   strip.begin();
