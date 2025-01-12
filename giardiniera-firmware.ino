@@ -173,11 +173,11 @@ void updateLEDs() {
 }
 
 void readControls() {
-  // Read pots for sequences A and B
-  for (int i = 0; i < NUM_LEDS; i++) {
-    sequenceA[i] = readMux(MUX_SIG0, i);
-    sequenceB[i] = readMux(MUX_SIG1, i);
-  }
+  // Read next pots for sequences A and B
+  int nextStepA = (step1 + 1) % NUM_LEDS;
+  int nextStepB = (step2 + 1) % NUM_LEDS;
+  sequenceA[nextStepA] = readMux(MUX_SIG0, nextStepA); //* (scalingFactorA / 255);
+  sequenceB[nextStepB] = readMux(MUX_SIG1, nextStepB); //* (scalingFactorB / 255);
   cvProb = readMux(MUX_SIG2, 5) * 1.7 - 511;
   cvDivA = readMux(MUX_SIG2, 3) * 1.7 - 511;
   cvDivB = readMux(MUX_SIG2, 4) * 1.7 - 511;
@@ -222,16 +222,16 @@ int readMux(int sigPin, int channel) {
 }
 
 void outputSequenceToDAC() {
-  int seq_a_out = sequenceA[step1] * (scalingFactorA / 255);
-  int seq_b_out = sequenceB[step2] * (scalingFactorB / 255);
-  dac.setChannelValue(MCP4728_CHANNEL_A, seq_a_out); 
-  dac.setChannelValue(MCP4728_CHANNEL_B, seq_b_out);
+  int seq_a_out = quantize(sequenceA[step1] * (scalingFactorA / 1023));
+  int seq_b_out = quantize(sequenceB[step2] * (scalingFactorB / 1023));
+  dac.setChannelValue(MCP4728_CHANNEL_A, seq_a_out, MCP4728_VREF_INTERNAL, MCP4728_GAIN_2X);
+  dac.setChannelValue(MCP4728_CHANNEL_B, seq_b_out, MCP4728_VREF_INTERNAL, MCP4728_GAIN_2X);
   int mixedValue = (seq_a_out + seq_b_out) / 2;
-  dac.setChannelValue(MCP4728_CHANNEL_C, mixedValue);
+  dac.setChannelValue(MCP4728_CHANNEL_C, mixedValue, MCP4728_VREF_INTERNAL, MCP4728_GAIN_2X);
   if (random(0, 100) < probSeq) {
-    dac.setChannelValue(MCP4728_CHANNEL_D, seq_a_out); // Use Sequence B
+    dac.setChannelValue(MCP4728_CHANNEL_D, seq_a_out, MCP4728_VREF_INTERNAL, MCP4728_GAIN_2X);
   } else {
-    dac.setChannelValue(MCP4728_CHANNEL_D, seq_b_out); // Use Sequence A
+    dac.setChannelValue(MCP4728_CHANNEL_D, seq_b_out, MCP4728_VREF_INTERNAL, MCP4728_GAIN_2X);
   }
 }
 
@@ -308,4 +308,10 @@ bool hasPotMoved(int muxChannel) {
   int secondValue = readMux(MUX_SIG2, muxChannel);
 
   return abs(secondValue - firstValue) > 3; // Threshold for movement detection
+}
+
+
+int quantize(int note) {
+  int semitone = note / 36;
+  return 200 + (semitone * 83.3);
 }
