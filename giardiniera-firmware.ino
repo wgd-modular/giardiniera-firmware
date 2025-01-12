@@ -307,5 +307,5 @@ bool hasPotMoved(int muxChannel) {
   delay(5);
   int secondValue = readMux(MUX_SIG2, muxChannel);
 
-  return abs(secondValue - firstValue) > 2; // Threshold for movement detection
+  return abs(secondValue - firstValue) > 3; // Threshold for movement detection
 }
