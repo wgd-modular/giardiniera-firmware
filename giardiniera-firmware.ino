@@ -196,7 +196,7 @@ void readControls() {
     }
   } else if (hasPotMoved(2)) {
     if (digitalRead(BUTTON_PIN) == LOW) {
-      scale = map(readMux(MUX_SIG2, 2), 0, 1023, 0, 5);
+      scale = map(readMux(MUX_SIG2, 2), 0, 1023, 0, 6);
     } else {
       probSeq = map(readMux(MUX_SIG2, 2) + cvProb, 0, 1023, 0, 100);
     }
