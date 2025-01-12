@@ -44,6 +44,9 @@ int cvDivB = 0;
 int cvProb = 0;
 int scalingFactorA = 1023;
 int scalingFactorB = 1023;
+int now = 0;
+
+const int GATE_WIDTH = 300;
 
 void setup() {
   strip.begin();
@@ -96,10 +99,19 @@ void loop() {
     
   }
 
+  
+
+  if (micros() - now > GATE_WIDTH) {
+    digitalWrite(GATE_OUT1, LOW);
+    digitalWrite(GATE_OUT2, LOW);
+    digitalWrite(GATE_OUT3, LOW);
+  }
+
   lastClockState = clockState;
 }
 
 void handleClockPulse() {
+  now = micros();
   static int counterA = 0, counterB = 0;
 
   // Advance sequence steps based on clock division
@@ -137,12 +149,6 @@ void handleClockPulse() {
   if (counterB == 0) {
     digitalWrite(GATE_OUT3, HIGH);
   }
-
-  delay(20); // Adjustable for gate width
-
-  digitalWrite(GATE_OUT1, LOW);
-  digitalWrite(GATE_OUT2, LOW);
-  digitalWrite(GATE_OUT3, LOW);
 }
 
 void updateLEDs() {
