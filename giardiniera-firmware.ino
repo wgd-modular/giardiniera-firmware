@@ -44,6 +44,7 @@ int cvDivB = 0;
 int cvProb = 0;
 int scalingFactorA = 1023;
 int scalingFactorB = 1023;
+int scale = 0;
 int now = 0;
 
 const int GATE_WIDTH = 5000;
@@ -95,8 +96,9 @@ void loop() {
       updateScalingVisualization(scalingFactorA, 200, 20, 0);
     } else if (hasPotMoved(1)) {
       updateScalingVisualization(scalingFactorB, 0, 200, 200);
+    } else if (hasPotMoved(2)) {
+      colorStrip(scale);
     }
-    
   }
 
   
@@ -177,7 +179,6 @@ void readControls() {
     sequenceB[i] = readMux(MUX_SIG1, i);
   }
   cvProb = readMux(MUX_SIG2, 5) * 1.7 - 511;
-  probSeq = map(readMux(MUX_SIG2, 2) + cvProb, 0, 1023, 0, 100);
   cvDivA = readMux(MUX_SIG2, 3) * 1.7 - 511;
   cvDivB = readMux(MUX_SIG2, 4) * 1.7 - 511;
   
@@ -192,6 +193,12 @@ void readControls() {
       scalingFactorB = readMux(MUX_SIG2, 1);
     } else {
       divSeqB = mapToDivisions((readMux(MUX_SIG2, 1) + cvDivB));
+    }
+  } else if (hasPotMoved(2)) {
+    if (digitalRead(BUTTON_PIN) == LOW) {
+      scale = map(readMux(MUX_SIG2, 2), 0, 1023, 0, 5);
+    } else {
+      probSeq = map(readMux(MUX_SIG2, 2) + cvProb, 0, 1023, 0, 100);
     }
   }
   
@@ -247,6 +254,26 @@ void updateScalingVisualization(int value, int r, int g, int b) {
     int dimmedG = (int)(g * fractionalPart);
     int dimmedB = (int)(b * fractionalPart);
     strip.setPixelColor(fullLitLEDs, strip.Color(dimmedR, dimmedG, dimmedB));
+  }
+
+  strip.show();
+}
+
+void colorStrip(int color) {
+  uint8_t r = 0, g = 0, b = 0;
+
+  switch (color) {
+    case 0: r = 255; g = 0; b = 0; break; // Red
+    case 1: r = 0; g = 255; b = 0; break; // Green
+    case 2: r = 0; g = 0; b = 255; break; // Blue
+    case 3: r = 255; g = 255; b = 0; break; // Yellow
+    case 4: r = 0; g = 255; b = 255; break; // Cyan
+    case 5: r = 255; g = 0; b = 255; break; // Magenta
+    case 6: r = 255; g = 255; b = 255; break; // White
+  }
+
+  for (int i = 0; i < NUM_LEDS; i++) {
+    strip.setPixelColor(i, strip.Color(r, g, b));
   }
 
   strip.show();
