@@ -88,15 +88,19 @@ void loop() {
     handleClockPulse();
   }
 
+  bool p0_moved = hasPotMoved(0);
+  bool p1_moved = hasPotMoved(1);
+  bool p2_moved = hasPotMoved(2);
+
   // Update controls
-  readControls();
+  readControls(p0_moved, p1_moved, p2_moved);
 
   if (digitalRead(BUTTON_PIN) == LOW) {
-    if(hasPotMoved(0)) {
+    if(p0_moved) {
       updateScalingVisualization(scalingFactorA, 200, 20, 0);
-    } else if (hasPotMoved(1)) {
+    } else if (p1_moved) {
       updateScalingVisualization(scalingFactorB, 0, 200, 200);
-    } else if (hasPotMoved(2)) {
+    } else if (p2_moved) {
       colorStrip(scale);
     }
   }
@@ -172,7 +176,7 @@ void updateLEDs() {
   strip.show();
 }
 
-void readControls() {
+void readControls(bool p0_moved, bool p1_moved, bool p2_moved) {
   // Read next pots for sequences A and B
   int nextStepA = (step1 + 1) % NUM_LEDS;
   int nextStepB = (step2 + 1) % NUM_LEDS;
@@ -182,19 +186,19 @@ void readControls() {
   cvDivA = readMux(MUX_SIG2, 3) * 1.7 - 511;
   cvDivB = readMux(MUX_SIG2, 4) * 1.7 - 511;
   
-  if(hasPotMoved(0)) {
+  if(p0_moved) {
     if (digitalRead(BUTTON_PIN) == LOW) {
       scalingFactorA = readMux(MUX_SIG2, 0);
     } else {
       divSeqA = mapToDivisions((readMux(MUX_SIG2, 0) + cvDivA));
     }
-  } else if (hasPotMoved(1)) {
+  } else if (p1_moved) {
     if (digitalRead(BUTTON_PIN) == LOW) {
       scalingFactorB = readMux(MUX_SIG2, 1);
     } else {
       divSeqB = mapToDivisions((readMux(MUX_SIG2, 1) + cvDivB));
     }
-  } else if (hasPotMoved(2)) {
+  } else if (p2_moved) {
     if (digitalRead(BUTTON_PIN) == LOW) {
       scale = map(readMux(MUX_SIG2, 2), 0, 1023, 0, 6);
     } else {
