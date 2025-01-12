@@ -180,8 +180,8 @@ void readControls(bool p0_moved, bool p1_moved, bool p2_moved) {
   // Read next pots for sequences A and B
   int nextStepA = (step1 + 1) % NUM_LEDS;
   int nextStepB = (step2 + 1) % NUM_LEDS;
-  sequenceA[nextStepA] = readMux(MUX_SIG0, nextStepA); //* (scalingFactorA / 255);
-  sequenceB[nextStepB] = readMux(MUX_SIG1, nextStepB); //* (scalingFactorB / 255);
+  sequenceA[nextStepA] = quantize(readMux(MUX_SIG0, nextStepA) * (scalingFactorA / 1023));
+  sequenceB[nextStepB] = quantize(readMux(MUX_SIG1, nextStepB) * (scalingFactorB / 1023));
   cvProb = readMux(MUX_SIG2, 5) * 1.7 - 511;
   cvDivA = readMux(MUX_SIG2, 3) * 1.7 - 511;
   cvDivB = readMux(MUX_SIG2, 4) * 1.7 - 511;
@@ -226,8 +226,8 @@ int readMux(int sigPin, int channel) {
 }
 
 void outputSequenceToDAC() {
-  int seq_a_out = quantize(sequenceA[step1] * (scalingFactorA / 1023));
-  int seq_b_out = quantize(sequenceB[step2] * (scalingFactorB / 1023));
+  int seq_a_out = sequenceA[step1];
+  int seq_b_out = sequenceB[step2];
   dac.setChannelValue(MCP4728_CHANNEL_A, seq_a_out, MCP4728_VREF_INTERNAL, MCP4728_GAIN_2X);
   dac.setChannelValue(MCP4728_CHANNEL_B, seq_b_out, MCP4728_VREF_INTERNAL, MCP4728_GAIN_2X);
   int mixedValue = (seq_a_out + seq_b_out) / 2;
@@ -308,7 +308,7 @@ void startupAnimation() {
 
 bool hasPotMoved(int muxChannel) {
   int firstValue = readMux(MUX_SIG2, muxChannel);
-  delay(5);
+  delay(4);
   int secondValue = readMux(MUX_SIG2, muxChannel);
 
   return abs(secondValue - firstValue) > 3; // Threshold for movement detection
@@ -316,6 +316,6 @@ bool hasPotMoved(int muxChannel) {
 
 
 int quantize(int note) {
-  int semitone = note / 36;
-  return 200 + (semitone * 83.3);
+  int semitone = map(note, 0, 1023, 0, 35);
+  return 300 + (int)(semitone * 83.333 + 0.5);
 }
