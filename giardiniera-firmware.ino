@@ -209,11 +209,12 @@ void readControls(bool p0_moved, bool p1_moved, bool p2_moved) {
 }
 
 int mapToDivisions(int value) {
-  if (value < 170) return 1;
-  if (value < 340) return 2;
-  if (value < 510) return 3;
-  if (value < 680) return 4;
-  if (value < 850) return 8;
+  if (value < 146) return 1;
+  if (value < 292) return 2;
+  if (value < 438) return 3;
+  if (value < 584) return 4;
+  if (value < 730) return 8;
+  if (value < 876) return 12;
   return 16;
 }
 
