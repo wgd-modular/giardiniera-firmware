@@ -200,7 +200,7 @@ void readControls(bool p0_moved, bool p1_moved, bool p2_moved) {
     }
   } else if (p2_moved) {
     if (digitalRead(BUTTON_PIN) == LOW) {
-      scale = map(readMux(MUX_SIG2, 2), 0, 1023, 0, 5);
+      scale = map(readMux(MUX_SIG2, 2), 0, 1000, 0, 7);
     } else {
       probSeq = map(readMux(MUX_SIG2, 2) + cvProb, 0, 1023, 0, 100);
     }
@@ -268,13 +268,14 @@ void colorStrip(int color) {
   uint8_t r = 0, g = 0, b = 0;
 
   switch (color) {
-    case 0: r = 255; g = 0; b = 0; break; // Red
-    case 1: r = 0; g = 255; b = 0; break; // Green
-    case 2: r = 0; g = 0; b = 255; break; // Blue
-    case 3: r = 255; g = 255; b = 0; break; // Yellow
-    case 4: r = 0; g = 255; b = 255; break; // Cyan
-    case 5: r = 255; g = 0; b = 255; break; // Magenta
-    case 6: r = 255; g = 255; b = 255; break; // White
+    case 0: r = 255; g = 255; b = 255; break; // Chromatic - White
+    case 1: r = 255; g = 0;   b = 0;   break; // Ionian - Red
+    case 2: r = 0;   g = 255; b = 0;   break; // Dorian - Green
+    case 3: r = 0;   g = 0;   b = 255; break; // Phrygian - Blue
+    case 4: r = 255; g = 255; b = 0;   break; // Lydian - Yellow
+    case 5: r = 200; g = 30; b = 0;   break; // Mixolydian - Orange
+    case 6: r = 255; g = 0;   b = 255; break; // Aeolian - Magenta
+    case 7: r = 0;   g = 255; b = 255; break; // Locrian - Cyan
   }
 
   for (int i = 0; i < NUM_LEDS; i++) {
@@ -316,42 +317,44 @@ bool hasPotMoved(int muxChannel) {
 }
 
 
-// Define scales as a constant 2D array
-const int scales[6][36] = {
+const int scales[8][36] = {
     // Chromatic scale
     {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
      12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
      24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35},
-    // Major scale
+    // Ionian (Major)
     {0, 0, 2, 2, 4, 5, 5, 7, 7, 9, 9, 11,
      12, 12, 14, 14, 16, 17, 17, 19, 19, 21, 21, 23,
      24, 24, 26, 26, 28, 29, 29, 31, 31, 33, 33, 35},
-    // Minor scale
-    {0, 0, 2, 3, 3, 5, 5, 7, 8, 8, 10, 10,
-     12, 12, 14, 15, 15, 17, 17, 19, 20, 20, 22, 22,
-     24, 24, 26, 27, 27, 29, 29, 31, 32, 32, 34, 34},
-    // Dorian scale
+    // Dorian
     {0, 0, 2, 3, 3, 5, 5, 7, 7, 9, 10, 10,
      12, 12, 14, 15, 15, 17, 17, 19, 19, 21, 22, 22,
      24, 24, 26, 27, 27, 29, 29, 31, 31, 33, 34, 34},
-    // Lydian scale
+    // Phrygian
+    {0, 0, 1, 3, 3, 5, 5, 7, 8, 8, 10, 10,
+     12, 12, 13, 15, 15, 17, 17, 19, 20, 20, 22, 22,
+     24, 24, 25, 27, 27, 29, 29, 31, 32, 32, 34, 34},
+    // Lydian
     {0, 0, 2, 2, 4, 6, 6, 7, 7, 9, 9, 11,
      12, 12, 14, 14, 16, 18, 18, 19, 19, 21, 21, 23,
      24, 24, 26, 26, 28, 30, 30, 31, 31, 33, 33, 35},
-    // Harmonic Minor scale
-    {0, 0, 2, 3, 3, 5, 5, 7, 8, 8, 11, 11,
-     12, 12, 14, 15, 15, 17, 17, 19, 20, 20, 23, 23,
-     24, 24, 26, 27, 27, 29, 29, 31, 32, 32, 35, 35}
+    // Mixolydian
+    {0, 0, 2, 2, 4, 5, 5, 7, 7, 9, 10, 10,
+     12, 12, 14, 14, 16, 17, 17, 19, 19, 21, 22, 22,
+     24, 24, 26, 26, 28, 29, 29, 31, 31, 33, 34, 34},
+    // Aeolian (Natural Minor)
+    {0, 0, 2, 3, 3, 5, 5, 7, 8, 8, 10, 10,
+     12, 12, 14, 15, 15, 17, 17, 19, 20, 20, 22, 22,
+     24, 24, 26, 27, 27, 29, 29, 31, 32, 32, 34, 34},
+    // Locrian
+    {0, 0, 1, 3, 3, 5, 6, 6, 8, 8, 10, 10,
+     12, 12, 13, 15, 15, 17, 18, 18, 20, 20, 22, 22,
+     24, 24, 25, 27, 27, 29, 30, 30, 32, 32, 34, 34}
 };
 
 // Quantize function
 int quantize(int note, int scale) {
-    // Map note to semitone range (0 to 35)
     int semitone = map(note, 0, 1023, 0, 35);
-
-    // Lookup the quantized semitone using the precomputed array
     semitone = scales[scale][semitone];
-
-    // Calculate the quantized voltage in mV
     return 300 + (int)(semitone * 83.333 + 0.5);
 }
