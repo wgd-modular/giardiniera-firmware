@@ -180,8 +180,8 @@ void readControls(bool p0_moved, bool p1_moved, bool p2_moved) {
   // Read next pots for sequences A and B
   int nextStepA = (step1 + 1) % NUM_LEDS;
   int nextStepB = (step2 + 1) % NUM_LEDS;
-  sequenceA[nextStepA] = quantize(readMux(MUX_SIG0, nextStepA) * (scalingFactorA / 1023), scale);
-  sequenceB[nextStepB] = quantize(readMux(MUX_SIG1, nextStepB) * (scalingFactorB / 1023), scale);
+  sequenceA[nextStepA] = quantize(map(readMux(MUX_SIG0, nextStepA), 0, 1023, 0, scalingFactorA), scale);
+  sequenceB[nextStepB] = quantize(map(readMux(MUX_SIG1, nextStepB), 0, 1023, 0, scalingFactorB), scale);
   cvProb = readMux(MUX_SIG2, 5) * 1.7 - 511;
   cvDivA = readMux(MUX_SIG2, 3) * 1.7 - 511;
   cvDivB = readMux(MUX_SIG2, 4) * 1.7 - 511;
