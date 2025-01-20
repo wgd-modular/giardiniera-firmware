@@ -180,8 +180,8 @@ void readControls(bool p0_moved, bool p1_moved, bool p2_moved) {
   // Read next pots for sequences A and B
   int nextStepA = (step1 + 1) % NUM_LEDS;
   int nextStepB = (step2 + 1) % NUM_LEDS;
-  sequenceA[nextStepA] = quantize(readMux(MUX_SIG0, nextStepA) * (scalingFactorA / 1023));
-  sequenceB[nextStepB] = quantize(readMux(MUX_SIG1, nextStepB) * (scalingFactorB / 1023));
+  sequenceA[nextStepA] = quantize(readMux(MUX_SIG0, nextStepA) * (scalingFactorA / 1023), scale);
+  sequenceB[nextStepB] = quantize(readMux(MUX_SIG1, nextStepB) * (scalingFactorB / 1023), scale);
   cvProb = readMux(MUX_SIG2, 5) * 1.7 - 511;
   cvDivA = readMux(MUX_SIG2, 3) * 1.7 - 511;
   cvDivB = readMux(MUX_SIG2, 4) * 1.7 - 511;
@@ -200,7 +200,7 @@ void readControls(bool p0_moved, bool p1_moved, bool p2_moved) {
     }
   } else if (p2_moved) {
     if (digitalRead(BUTTON_PIN) == LOW) {
-      scale = map(readMux(MUX_SIG2, 2), 0, 1023, 0, 6);
+      scale = map(readMux(MUX_SIG2, 2), 0, 1023, 0, 5);
     } else {
       probSeq = map(readMux(MUX_SIG2, 2) + cvProb, 0, 1023, 0, 100);
     }
@@ -316,7 +316,42 @@ bool hasPotMoved(int muxChannel) {
 }
 
 
-int quantize(int note) {
-  int semitone = map(note, 0, 1023, 0, 35);
-  return 300 + (int)(semitone * 83.333 + 0.5);
+// Define scales as a constant 2D array
+const int scales[6][36] = {
+    // Chromatic scale
+    {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+     12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+     24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35},
+    // Major scale
+    {0, 0, 2, 2, 4, 5, 5, 7, 7, 9, 9, 11,
+     12, 12, 14, 14, 16, 17, 17, 19, 19, 21, 21, 23,
+     24, 24, 26, 26, 28, 29, 29, 31, 31, 33, 33, 35},
+    // Minor scale
+    {0, 0, 2, 3, 3, 5, 5, 7, 8, 8, 10, 10,
+     12, 12, 14, 15, 15, 17, 17, 19, 20, 20, 22, 22,
+     24, 24, 26, 27, 27, 29, 29, 31, 32, 32, 34, 34},
+    // Dorian scale
+    {0, 0, 2, 3, 3, 5, 5, 7, 7, 9, 10, 10,
+     12, 12, 14, 15, 15, 17, 17, 19, 19, 21, 22, 22,
+     24, 24, 26, 27, 27, 29, 29, 31, 31, 33, 34, 34},
+    // Lydian scale
+    {0, 0, 2, 2, 4, 6, 6, 7, 7, 9, 9, 11,
+     12, 12, 14, 14, 16, 18, 18, 19, 19, 21, 21, 23,
+     24, 24, 26, 26, 28, 30, 30, 31, 31, 33, 33, 35},
+    // Harmonic Minor scale
+    {0, 0, 2, 3, 3, 5, 5, 7, 8, 8, 11, 11,
+     12, 12, 14, 15, 15, 17, 17, 19, 20, 20, 23, 23,
+     24, 24, 26, 27, 27, 29, 29, 31, 32, 32, 35, 35}
+};
+
+// Quantize function
+int quantize(int note, int scale) {
+    // Map note to semitone range (0 to 35)
+    int semitone = map(note, 0, 1023, 0, 35);
+
+    // Lookup the quantized semitone using the precomputed array
+    semitone = scales[scale][semitone];
+
+    // Calculate the quantized voltage in mV
+    return 300 + (int)(semitone * 83.333 + 0.5);
 }
