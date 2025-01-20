@@ -114,6 +114,8 @@ void loop() {
   }
 
   lastClockState = clockState;
+  lastResetAState = ResetAState;
+  lastResetBState = ResetBState;
 }
 
 void handleClockPulse() {
