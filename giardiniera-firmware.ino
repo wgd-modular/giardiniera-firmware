@@ -231,7 +231,7 @@ void outputSequenceToDAC() {
   int seq_b_out = sequenceB[step2];
   dac.setChannelValue(MCP4728_CHANNEL_A, seq_a_out, MCP4728_VREF_INTERNAL, MCP4728_GAIN_2X);
   dac.setChannelValue(MCP4728_CHANNEL_B, seq_b_out, MCP4728_VREF_INTERNAL, MCP4728_GAIN_2X);
-  int mixedValue = (seq_a_out + seq_b_out) / 2;
+  int mixedValue = quantize((seq_a_out + seq_b_out) / 2, scale);
   dac.setChannelValue(MCP4728_CHANNEL_C, mixedValue, MCP4728_VREF_INTERNAL, MCP4728_GAIN_2X);
   if (random(0, 100) < probSeq) {
     dac.setChannelValue(MCP4728_CHANNEL_D, seq_a_out, MCP4728_VREF_INTERNAL, MCP4728_GAIN_2X);
@@ -310,10 +310,10 @@ void startupAnimation() {
 
 bool hasPotMoved(int muxChannel) {
   int firstValue = readMux(MUX_SIG2, muxChannel);
-  delay(4);
+  delay(2);
   int secondValue = readMux(MUX_SIG2, muxChannel);
 
-  return abs(secondValue - firstValue) > 3; // Threshold for movement detection
+  return abs(secondValue - firstValue) > 2; // Threshold for movement detection
 }
 
 
