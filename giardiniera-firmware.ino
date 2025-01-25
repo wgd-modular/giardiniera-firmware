@@ -36,9 +36,12 @@ int step2 = 0;
 
 int sequenceA[NUM_LEDS];
 int sequenceB[NUM_LEDS];
-int divSeqA = 1;
-int divSeqB = 1;
+int divisionPotA = 0;
+int divisionPotB = 0;
+int divisionA = 1;
+int divisionB = 1;
 int probSeq = 50;
+int probPot = 511;
 int cvDivA = 0;
 int cvDivB = 0;
 int cvProb = 0;
@@ -47,7 +50,7 @@ int scalingFactorB = 1023;
 int scale = 0;
 int now = 0;
 
-const int GATE_WIDTH = 5000;
+const int GATE_WIDTH = 10000;
 
 void setup() {
   strip.begin();
@@ -123,12 +126,12 @@ void handleClockPulse() {
   static int counterA = 0, counterB = 0;
 
   // Advance sequence steps based on clock division
-  if (++counterA >= divSeqA) {
+  if (++counterA >= divisionA) {
     counterA = 0;
     step1 = (step1 + 1) % NUM_LEDS;
   }
 
-  if (++counterB >= divSeqB) {
+  if (++counterB >= divisionB) {
     counterB = 0;
     step2 = (step2 + 1) % NUM_LEDS;
   }
@@ -184,30 +187,32 @@ void readControls(bool p0_moved, bool p1_moved, bool p2_moved) {
   int nextStepB = (step2 + 1) % NUM_LEDS;
   sequenceA[nextStepA] = quantize(map(readMux(MUX_SIG0, nextStepA), 0, 1023, 0, scalingFactorA), scale);
   sequenceB[nextStepB] = quantize(map(readMux(MUX_SIG1, nextStepB), 0, 1023, 0, scalingFactorB), scale);
-  cvProb = readMux(MUX_SIG2, 5) * 1.7 - 511;
-  cvDivA = readMux(MUX_SIG2, 3) * 1.7 - 511;
-  cvDivB = readMux(MUX_SIG2, 4) * 1.7 - 511;
+  cvProb = (readMux(MUX_SIG2, 5) - 310) * 6.8;
+  cvDivA = (readMux(MUX_SIG2, 3) - 310) * 6.8;
+  cvDivB = (readMux(MUX_SIG2, 4) - 310) * 6.8;
   
   if(p0_moved) {
     if (digitalRead(BUTTON_PIN) == LOW) {
       scalingFactorA = readMux(MUX_SIG2, 0);
     } else {
-      divSeqA = mapToDivisions((readMux(MUX_SIG2, 0) + cvDivA));
+      divisionPotA = readMux(MUX_SIG2, 0);
     }
   } else if (p1_moved) {
     if (digitalRead(BUTTON_PIN) == LOW) {
       scalingFactorB = readMux(MUX_SIG2, 1);
     } else {
-      divSeqB = mapToDivisions((readMux(MUX_SIG2, 1) + cvDivB));
+      divisionPotB = readMux(MUX_SIG2, 1);
     }
   } else if (p2_moved) {
     if (digitalRead(BUTTON_PIN) == LOW) {
       scale = map(readMux(MUX_SIG2, 2), 0, 1000, 0, 7);
     } else {
-      probSeq = map(readMux(MUX_SIG2, 2) + cvProb, 0, 1023, 0, 100);
+      probSeq = readMux(MUX_SIG2, 2);
     }
   }
-  
+  divisionA = mapToDivisions(divisionPotA + cvDivA);
+  divisionB = mapToDivisions(divisionPotB + cvDivB);
+  probSeq = map(probPot + cvProb, 0, 1023, 0, 100);
 }
 
 int mapToDivisions(int value) {
