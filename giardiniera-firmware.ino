@@ -292,28 +292,44 @@ void colorStrip(int color) {
   strip.show();
 }
 
-
 void startupAnimation() {
-  // Pulsing animation with RGB wavy effect, max duration ~3 seconds
-  for (int pulse = 0; pulse < 3; pulse++) { // 6 pulses, ~3 seconds
-    for (int intensity = 0; intensity <= 255; intensity += 15) {
-      for (int i = 0; i < strip.numPixels(); i++) {
-        int wave = (intensity + i * 30) % 255; // Create a wavy effect
-        strip.setPixelColor(i, strip.Color(wave, 255 - wave, wave / 2));
+  int numPixels = strip.numPixels();
+
+  for (int flash = 0; flash < 4; flash++) {
+    for (int i = 0; i < numPixels * 2; i++) {
+      strip.clear();
+      for (int j = 0; j < flash + 2; j++) {
+        int pos = i - j;
+        if (pos >= 0 && pos < numPixels) {
+          int brightness = 255 - (j * 40);
+          strip.setPixelColor(pos, strip.Color((brightness * 200) / 255, (brightness * 20) / 255, 0));
+        }
       }
       strip.show();
-      delay(20);
-    }
-    for (int intensity = 255; intensity >= 0; intensity -= 15) {
-      for (int i = 0; i < strip.numPixels(); i++) {
-        int wave = (intensity + i * 30) % 255; // Create a wavy effect
-        strip.setPixelColor(i, strip.Color(wave, 255 - wave, wave / 2));
-      }
-      strip.show();
-      delay(20);
+      delay(25);
     }
   }
+
+  for (int flash = 0; flash < 4; flash++) {
+    uint32_t flashColor = (flash % 2 == 0) ? strip.Color(200, 20, 0) : strip.Color(0, 200, 200);
+    for (int i = 0; i < numPixels; i++) {
+      strip.setPixelColor(i, flashColor);
+    }
+    strip.show();
+    delay(100);
+    if (flash % 3 == 0) {
+      for (int i = 0; i < numPixels; i += 3) {
+        strip.setPixelColor(i, strip.Color(255, 255, 255));
+      }
+      strip.show();
+      delay(50);
+    }
+    strip.clear();
+    strip.show();
+    delay(100);
+  }
 }
+
 
 bool hasPotMoved(int muxChannel) {
   int firstValue = readMux(MUX_SIG2, muxChannel);
