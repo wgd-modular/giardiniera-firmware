@@ -207,7 +207,7 @@ void readControls(bool p0_moved, bool p1_moved, bool p2_moved) {
     if (digitalRead(BUTTON_PIN) == LOW) {
       scale = map(readMux(MUX_SIG2, 2), 0, 1000, 0, 7);
     } else {
-      probSeq = readMux(MUX_SIG2, 2);
+      probPot = readMux(MUX_SIG2, 2);
     }
   }
   divisionA = mapToDivisions(divisionPotA + cvDivA);
