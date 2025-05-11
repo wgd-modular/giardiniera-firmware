@@ -11,7 +11,20 @@
   _Secondary Function:_ Sets the note range for Sequencer B
 - **Scale Button:** While the Scale Button is held, the secondary functions of Clock Div A, Clock Div A, and Sequencer Probability are activated
 - **Sequencer Probability:** Controls the probability over which sequence is outputted at the Prob Out jack.  
-  _Secondary Function:_ Choose between 7 different quantization scales.
+  _Secondary Function:_ Choose between 7 different quantization scales. Each scale is represented by a color from the encoding below, and the knob position from left-to-right corresponds to the table entries top-to-bottom:
+  
+  | LED Color | RGB             | Scale                          |
+  |-----------|-----------------|--------------------------------|
+  | White     | (255, 255, 255) | Chromatic                      |
+  | Red       | (255, 0, 0)     | Ionian                         |
+  | Green     | (0, 255, 0)     | Dorian                         |
+  | Blue      | (0, 0, 255)     | Phrygian                       |
+  | Yellow    | (255, 255, 0)   | Lydian                         |
+  | Orange    | (200, 30, 0)    | Mixolydian                     |
+  | Magenta   | (255, 0, 255)   | Aeolian                        |
+  | Cyan      | (0, 255, 255)   | Locrian                        |
+
+
 
 ### Inputs
 
