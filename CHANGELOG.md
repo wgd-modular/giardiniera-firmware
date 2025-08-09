@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/wgd-modular/giardiniera-firmware/compare/v1.0.0...v1.0.1) (2025-08-09)
+
+
+### Bug Fixes
+
+* Improve pot movement tracking ([ac804a2](https://github.com/wgd-modular/giardiniera-firmware/commit/ac804a2a6c9ffcd9360423307f07e16798853259))
+* Improve pot movement tracking ([682aaf0](https://github.com/wgd-modular/giardiniera-firmware/commit/682aaf067d99b34db8eb8cece697c422f83bb396))
+
 ## 1.0.0 (2025-02-26)
 
 
