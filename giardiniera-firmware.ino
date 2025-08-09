@@ -49,6 +49,18 @@ int scalingFactorA = 1023;
 int scalingFactorB = 1023;
 int scale = 0;
 int now = 0;
+bool lastButtonState = HIGH;
+
+// --- POT movement tracking (mode-aware) ----------------
+int potLastStablePrimary[3];      // baseline used when button NOT pressed
+int potLastStableSecondary[3];    // baseline used when button IS pressed
+int potLastRaw[3];               // last raw/jitter-checked reading
+unsigned long potLastCheck[3];   // last check time per channel
+
+const unsigned long POT_CHECK_INTERVAL = 2000UL; // µs between physical reads (~2 ms)
+const int POT_NOISE_THRESHOLD = 4;               // ignore tiny ±4 jitter
+const int POT_MOVE_THRESHOLD = 8;                // consider move only > ±8
+
 
 const int GATE_WIDTH = 10000;
 
@@ -64,6 +76,20 @@ void setup() {
   pinMode(GATE_OUT3, OUTPUT);
   pinMode(BUTTON_PIN, INPUT);
 
+  pinMode(MUX_S0, OUTPUT);
+  pinMode(MUX_S1, OUTPUT);
+  pinMode(MUX_S2, OUTPUT);
+
+
+  for (int i = 0; i < 3; ++i) {
+    int v = readMux(MUX_SIG2, i);
+    potLastStablePrimary[i] = v;
+    potLastStableSecondary[i] = v;
+    potLastRaw[i] = v;
+    potLastCheck[i] = micros();
+    delayMicroseconds(60);
+  }
+
   // Initialize DAC (MCP4728)
   if (!dac.begin()) {
     while (1); // DAC initialization failed
@@ -74,10 +100,30 @@ void setup() {
   memset(sequenceB, 0, sizeof(sequenceB));
 }
 
+void syncPotBaselinesOnModeChange(bool toSecondary) {
+  for (int i = 0; i < 3; ++i) {
+    int v = readMux(MUX_SIG2, i);
+    if (toSecondary) {
+      potLastStableSecondary[i] = v;
+      potLastRaw[i] = v;
+    } else {
+      potLastStablePrimary[i] = v;
+      potLastRaw[i] = v;
+    }
+  }
+}
+
 void loop() {
   clockState = digitalRead(CLOCK_IN);
   ResetAState = digitalRead(RESET_IN_A);
   ResetBState = digitalRead(RESET_IN_B);
+
+  bool currentButtonState = digitalRead(BUTTON_PIN);
+
+  if (currentButtonState != lastButtonState) {
+    syncPotBaselinesOnModeChange(currentButtonState == LOW);
+    lastButtonState = currentButtonState;
+  }
 
   if (lastResetAState == LOW && ResetAState == HIGH) {
     step1 = 0;
@@ -107,8 +153,6 @@ void loop() {
       colorStrip(scale);
     }
   }
-
-  
 
   if (micros() - now > GATE_WIDTH) {
     digitalWrite(GATE_OUT1, LOW);
@@ -332,11 +376,38 @@ void startupAnimation() {
 
 
 bool hasPotMoved(int muxChannel) {
-  int firstValue = readMux(MUX_SIG2, muxChannel);
-  delay(2);
-  int secondValue = readMux(MUX_SIG2, muxChannel);
+  bool secondaryMode = (digitalRead(BUTTON_PIN) == LOW); // current mode
 
-  return abs(secondValue - firstValue) > 2; // Threshold for movement detection
+  unsigned long nowTime = micros();
+  // rate-limit physical reads
+  if (nowTime - potLastCheck[muxChannel] < POT_CHECK_INTERVAL) {
+    return false;
+  }
+
+  int currentValue = readMux(MUX_SIG2, muxChannel);
+
+  // jitter filter: if the new raw read is within tiny noise of the previous raw, treat unchanged
+  if (abs(currentValue - potLastRaw[muxChannel]) <= POT_NOISE_THRESHOLD) {
+    currentValue = potLastRaw[muxChannel];
+  }
+  potLastRaw[muxChannel] = currentValue;
+
+  // choose correct baseline depending on mode (primary vs secondary)
+  bool moved = false;
+  if (secondaryMode) {
+    if (abs(currentValue - potLastStableSecondary[muxChannel]) > POT_MOVE_THRESHOLD) {
+      potLastStableSecondary[muxChannel] = currentValue;
+      moved = true;
+    }
+  } else {
+    if (abs(currentValue - potLastStablePrimary[muxChannel]) > POT_MOVE_THRESHOLD) {
+      potLastStablePrimary[muxChannel] = currentValue;
+      moved = true;
+    }
+  }
+
+  potLastCheck[muxChannel] = nowTime;
+  return moved;
 }
 
 
