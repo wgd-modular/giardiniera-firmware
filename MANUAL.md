@@ -12,6 +12,8 @@
 - **Scale Button:** While the Scale Button is held, the secondary functions of Clock Div A, Clock Div A, and Sequencer Probability are activated
 - **Sequencer Probability:** Controls the probability over which sequence is outputted at the Prob Out jack.  
   _Secondary Function:_ Choose between 7 different quantization scales. Each scale is represented by a color from the encoding below, and the knob position from left-to-right corresponds to the table entries top-to-bottom:
+- **Steps 1-8:** Set Voltage for each step of the sequence
+  _Secondary Function:_ Step 1: Set sequence length
   
   | LED Color | RGB             | Scale                          |
   |-----------|-----------------|--------------------------------|
