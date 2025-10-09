@@ -50,12 +50,20 @@ int scalingFactorB = 1023;
 int scale = 0;
 int now = 0;
 bool lastButtonState = HIGH;
+int lengthA = 8;
+int lengthB = 8;
 
 // --- POT movement tracking (mode-aware) ----------------
 int potLastStablePrimary[3];      // baseline used when button NOT pressed
 int potLastStableSecondary[3];    // baseline used when button IS pressed
 int potLastRaw[3];               // last raw/jitter-checked reading
 unsigned long potLastCheck[3];   // last check time per channel
+
+int seqKnobLastStablePrimary[2];
+int seqKnobLastStableSecondary[2];
+int seqKnobLastRaw[2];
+unsigned long seqKnobLastCheck[2];
+
 
 const unsigned long POT_CHECK_INTERVAL = 2000UL; // µs between physical reads (~2 ms)
 const int POT_NOISE_THRESHOLD = 4;               // ignore tiny ±4 jitter
@@ -90,6 +98,19 @@ void setup() {
     delayMicroseconds(60);
   }
 
+  int vA = readMux(MUX_SIG0, 0);
+  seqKnobLastStablePrimary[0] = vA;
+  seqKnobLastStableSecondary[0] = vA;
+  seqKnobLastRaw[0] = vA;
+  seqKnobLastCheck[0] = micros();
+  delayMicroseconds(60);
+  
+  int vB = readMux(MUX_SIG1, 0);
+  seqKnobLastStablePrimary[1] = vB;
+  seqKnobLastStableSecondary[1] = vB;
+  seqKnobLastRaw[1] = vB;
+  seqKnobLastCheck[1] = micros();
+
   // Initialize DAC (MCP4728)
   if (!dac.begin()) {
     while (1); // DAC initialization failed
@@ -110,6 +131,20 @@ void syncPotBaselinesOnModeChange(bool toSecondary) {
       potLastStablePrimary[i] = v;
       potLastRaw[i] = v;
     }
+  }
+
+  int vA = readMux(MUX_SIG0, 0);
+  int vB = readMux(MUX_SIG1, 0);
+  if (toSecondary) {
+    seqKnobLastStableSecondary[0] = vA;
+    seqKnobLastRaw[0] = vA;
+    seqKnobLastStableSecondary[1] = vB;
+    seqKnobLastRaw[1] = vB;
+  } else {
+    seqKnobLastStablePrimary[0] = vA;
+    seqKnobLastRaw[0] = vA;
+    seqKnobLastStablePrimary[1] = vB;
+    seqKnobLastRaw[1] = vB;
   }
 }
 
@@ -140,9 +175,11 @@ void loop() {
   bool p0_moved = hasPotMoved(0);
   bool p1_moved = hasPotMoved(1);
   bool p2_moved = hasPotMoved(2);
+  bool seqA_moved = hasSeqKnobMoved(0);
+  bool seqB_moved = hasSeqKnobMoved(1);
 
   // Update controls
-  readControls(p0_moved, p1_moved, p2_moved);
+  readControls(p0_moved, p1_moved, p2_moved, seqA_moved, seqB_moved);
 
   if (digitalRead(BUTTON_PIN) == LOW) {
     if(p0_moved) {
@@ -151,6 +188,10 @@ void loop() {
       updateScalingVisualization(scalingFactorB, 0, 200, 200);
     } else if (p2_moved) {
       colorStrip(scale);
+    } else if (seqA_moved) {
+      updateScalingVisualization(map(lengthA, 1, 8, 0, 1023), 200, 20, 0);
+    } else if (seqB_moved) {
+      updateScalingVisualization(map(lengthB, 1, 8, 0, 1023), 0, 200, 200);
     }
   }
 
@@ -172,12 +213,12 @@ void handleClockPulse() {
   // Advance sequence steps based on clock division
   if (++counterA >= divisionA) {
     counterA = 0;
-    step1 = (step1 + 1) % NUM_LEDS;
+    step1 = (step1 + 1) % lengthA;
   }
 
   if (++counterB >= divisionB) {
     counterB = 0;
-    step2 = (step2 + 1) % NUM_LEDS;
+    step2 = (step2 + 1) % lengthB;
   }
 
   // Update LEDs with sequences
@@ -214,23 +255,45 @@ void updateLEDs() {
         // If both sequences are on the same step, mix colors
         strip.setPixelColor(i, strip.Color(128, 0, 128)); // Purple as a mix of Sequence 1 and 2 colors
       } else if (i == step1) {
-        // Sequence 1: Cyan
-        strip.setPixelColor(i, strip.Color(0, 200, 200));
-      } else if (i == step2) {
-        // Sequence 2: Red
+        // Sequence 1: Red
         strip.setPixelColor(i, strip.Color(200, 20, 0));
+      } else if (i == step2) {
+        // Sequence 2: Cyan
+        strip.setPixelColor(i, strip.Color(0, 200, 200));
       }
     }
   }
   strip.show();
 }
 
-void readControls(bool p0_moved, bool p1_moved, bool p2_moved) {
+void readControls(bool p0_moved, bool p1_moved, bool p2_moved, bool seqA_moved, bool seqB_moved) {
   // Read next pots for sequences A and B
   int nextStepA = (step1 + 1) % NUM_LEDS;
   int nextStepB = (step2 + 1) % NUM_LEDS;
-  sequenceA[nextStepA] = quantize(map(readMux(MUX_SIG0, nextStepA), 0, 1023, 0, scalingFactorA), scale);
-  sequenceB[nextStepB] = quantize(map(readMux(MUX_SIG1, nextStepB), 0, 1023, 0, scalingFactorB), scale);
+  if (digitalRead(BUTTON_PIN) == LOW) {
+    if (seqA_moved) {
+      int currentLengthKnobA = readMux(MUX_SIG0, 0);
+      lengthA = map(currentLengthKnobA, 0, 1023, 1, 8);
+      if (step1 >= lengthA) step1 = 0;
+    }
+    
+    if (seqB_moved) {
+      int currentLengthKnobB = readMux(MUX_SIG1, 0);
+      lengthB = map(currentLengthKnobB, 0, 1023, 1, 8);
+      if (step2 >= lengthB) step2 = 0;
+    }
+    
+    if (nextStepA != 0) {
+      sequenceA[nextStepA] = quantize(map(readMux(MUX_SIG0, nextStepA), 0, 1023, 0, scalingFactorA), scale);
+    }
+    if (nextStepB != 0) {
+      sequenceB[nextStepB] = quantize(map(readMux(MUX_SIG1, nextStepB), 0, 1023, 0, scalingFactorB), scale);
+    }
+  } else {
+    sequenceA[nextStepA] = quantize(map(readMux(MUX_SIG0, nextStepA), 0, 1023, 0, scalingFactorA), scale);
+    sequenceB[nextStepB] = quantize(map(readMux(MUX_SIG1, nextStepB), 0, 1023, 0, scalingFactorB), scale);
+  }
+  
   cvProb = (readMux(MUX_SIG2, 5) - 310) * 6.8;
   cvDivA = (readMux(MUX_SIG2, 3) - 310) * 6.8;
   cvDivB = (readMux(MUX_SIG2, 4) - 310) * 6.8;
@@ -407,6 +470,40 @@ bool hasPotMoved(int muxChannel) {
   }
 
   potLastCheck[muxChannel] = nowTime;
+  return moved;
+}
+
+
+bool hasSeqKnobMoved(int seqIndex) {
+  bool secondaryMode = (digitalRead(BUTTON_PIN) == LOW);
+
+  unsigned long nowTime = micros();
+  if (nowTime - seqKnobLastCheck[seqIndex] < POT_CHECK_INTERVAL) {
+    return false;
+  }
+
+  int sigPin = (seqIndex == 0) ? MUX_SIG0 : MUX_SIG1;
+  int currentValue = readMux(sigPin, 0);
+
+  if (abs(currentValue - seqKnobLastRaw[seqIndex]) <= POT_NOISE_THRESHOLD) {
+    currentValue = seqKnobLastRaw[seqIndex];
+  }
+  seqKnobLastRaw[seqIndex] = currentValue;
+
+  bool moved = false;
+  if (secondaryMode) {
+    if (abs(currentValue - seqKnobLastStableSecondary[seqIndex]) > POT_MOVE_THRESHOLD) {
+      seqKnobLastStableSecondary[seqIndex] = currentValue;
+      moved = true;
+    }
+  } else {
+    if (abs(currentValue - seqKnobLastStablePrimary[seqIndex]) > POT_MOVE_THRESHOLD) {
+      seqKnobLastStablePrimary[seqIndex] = currentValue;
+      moved = true;
+    }
+  }
+
+  seqKnobLastCheck[seqIndex] = nowTime;
   return moved;
 }
 
