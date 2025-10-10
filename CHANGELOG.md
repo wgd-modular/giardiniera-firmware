@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.0](https://github.com/wgd-modular/giardiniera-firmware/compare/v1.0.1...v1.1.0) (2025-10-10)
+
+
+### Features
+
+* Add different play mode ([ffda08a](https://github.com/wgd-modular/giardiniera-firmware/commit/ffda08a2a72ec58c1e9b8dc793ccd73de157963c))
+* Add different play modes ([cca3b87](https://github.com/wgd-modular/giardiniera-firmware/commit/cca3b8741c19900aed54766d2d34fb75e75a42d7))
+* Allow setting of sequencer lengths per channel using step 1 of each sequencer ([5a27a3d](https://github.com/wgd-modular/giardiniera-firmware/commit/5a27a3d101378250b4ce23090a4d824848802e30))
+* Allow setting of sequencer lengths per channel using step 1 of each sequencer ([279e7cd](https://github.com/wgd-modular/giardiniera-firmware/commit/279e7cd4e4f7c6fdac540a209c9a9922de2070df))
+
+
+### Bug Fixes
+
+* Fix reversed sequencer colors ([5a27a3d](https://github.com/wgd-modular/giardiniera-firmware/commit/5a27a3d101378250b4ce23090a4d824848802e30))
+
 ## [1.0.1](https://github.com/wgd-modular/giardiniera-firmware/compare/v1.0.0...v1.0.1) (2025-08-09)
 
 
