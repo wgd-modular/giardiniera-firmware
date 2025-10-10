@@ -13,7 +13,7 @@
 - **Sequencer Probability:** Controls the probability over which sequence is outputted at the Prob Out jack.  
   _Secondary Function:_ Choose between 7 different quantization scales. Each scale is represented by a color from the encoding below, and the knob position from left-to-right corresponds to the table entries top-to-bottom:
 - **Steps 1-8:** Set Voltage for each step of the sequence
-  _Secondary Function:_ Step 1: Set sequence length
+  _Secondary Function:_ Step 1: Set sequence length Step 2: Set playmode (1: Forward 2: Backward 3: Ping Pong 4: Random)
   
   | LED Color | RGB             | Scale                          |
   |-----------|-----------------|--------------------------------|

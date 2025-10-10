@@ -52,6 +52,10 @@ int now = 0;
 bool lastButtonState = HIGH;
 int lengthA = 8;
 int lengthB = 8;
+int directionA = 0;
+int directionB = 0;
+int directionStateA = 1;
+int directionStateB = 1;
 
 // --- POT movement tracking (mode-aware) ----------------
 int potLastStablePrimary[3];      // baseline used when button NOT pressed
@@ -63,6 +67,11 @@ int seqKnobLastStablePrimary[2];
 int seqKnobLastStableSecondary[2];
 int seqKnobLastRaw[2];
 unsigned long seqKnobLastCheck[2];
+
+int seqKnob2LastStablePrimary[2];
+int seqKnob2LastStableSecondary[2];
+int seqKnob2LastRaw[2];
+unsigned long seqKnob2LastCheck[2];
 
 
 const unsigned long POT_CHECK_INTERVAL = 2000UL; // µs between physical reads (~2 ms)
@@ -111,6 +120,19 @@ void setup() {
   seqKnobLastRaw[1] = vB;
   seqKnobLastCheck[1] = micros();
 
+  int vA2 = readMux(MUX_SIG0, 1);
+  seqKnob2LastStablePrimary[0] = vA2;
+  seqKnob2LastStableSecondary[0] = vA2;
+  seqKnob2LastRaw[0] = vA2;
+  seqKnob2LastCheck[0] = micros();
+  delayMicroseconds(60);
+  
+  int vB2 = readMux(MUX_SIG1, 1);
+  seqKnob2LastStablePrimary[1] = vB2;
+  seqKnob2LastStableSecondary[1] = vB2;
+  seqKnob2LastRaw[1] = vB2;
+  seqKnob2LastCheck[1] = micros();
+
   // Initialize DAC (MCP4728)
   if (!dac.begin()) {
     while (1); // DAC initialization failed
@@ -146,6 +168,20 @@ void syncPotBaselinesOnModeChange(bool toSecondary) {
     seqKnobLastStablePrimary[1] = vB;
     seqKnobLastRaw[1] = vB;
   }
+
+  int vA2 = readMux(MUX_SIG0, 1);
+  int vB2 = readMux(MUX_SIG1, 1);
+  if (toSecondary) {
+    seqKnob2LastStableSecondary[0] = vA2;
+    seqKnob2LastRaw[0] = vA2;
+    seqKnob2LastStableSecondary[1] = vB2;
+    seqKnob2LastRaw[1] = vB2;
+  } else {
+    seqKnob2LastStablePrimary[0] = vA2;
+    seqKnob2LastRaw[0] = vA2;
+    seqKnob2LastStablePrimary[1] = vB2;
+    seqKnob2LastRaw[1] = vB2;
+  }
 }
 
 void loop() {
@@ -177,9 +213,11 @@ void loop() {
   bool p2_moved = hasPotMoved(2);
   bool seqA_moved = hasSeqKnobMoved(0);
   bool seqB_moved = hasSeqKnobMoved(1);
+  bool seqA2_moved = hasSeqKnob2Moved(0);
+  bool seqB2_moved = hasSeqKnob2Moved(1);
 
   // Update controls
-  readControls(p0_moved, p1_moved, p2_moved, seqA_moved, seqB_moved);
+  readControls(p0_moved, p1_moved, p2_moved, seqA_moved, seqB_moved, seqA2_moved, seqB2_moved);
 
   if (digitalRead(BUTTON_PIN) == LOW) {
     if(p0_moved) {
@@ -192,6 +230,10 @@ void loop() {
       updateScalingVisualization(map(lengthA, 1, 8, 0, 1023), 200, 20, 0);
     } else if (seqB_moved) {
       updateScalingVisualization(map(lengthB, 1, 8, 0, 1023), 0, 200, 200);
+    } else if (seqA2_moved) {
+      updateScalingVisualization(map(directionA, 0, 3, 0, 1023), 200, 20, 0);
+    } else if (seqB2_moved) {
+      updateScalingVisualization(map(directionB, 0, 3, 0, 1023), 0, 200, 200);
     }
   }
 
@@ -210,15 +252,15 @@ void handleClockPulse() {
   now = micros();
   static int counterA = 0, counterB = 0;
 
-  // Advance sequence steps based on clock division
+  // Advance sequence steps based on clock division and playback mode
   if (++counterA >= divisionA) {
     counterA = 0;
-    step1 = (step1 + 1) % lengthA;
+    step1 = getNextStep(step1, lengthA, directionA, directionStateA);
   }
 
   if (++counterB >= divisionB) {
     counterB = 0;
-    step2 = (step2 + 1) % lengthB;
+    step2 = getNextStep(step2, lengthB, directionB, directionStateB);
   }
 
   // Update LEDs with sequences
@@ -266,21 +308,41 @@ void updateLEDs() {
   strip.show();
 }
 
-void readControls(bool p0_moved, bool p1_moved, bool p2_moved, bool seqA_moved, bool seqB_moved) {
+void readControls(bool p0_moved, bool p1_moved, bool p2_moved, bool seqA_moved, bool seqB_moved, bool seqA2_moved, bool seqB2_moved) {
   // Read next pots for sequences A and B
-  int nextStepA = (step1 + 1) % NUM_LEDS;
-  int nextStepB = (step2 + 1) % NUM_LEDS;
+  int nextStepA = getNextStep(step1, lengthA, directionA, directionStateA);
+  int nextStepB = getNextStep(step2, lengthB, directionB, directionStateB);
   if (digitalRead(BUTTON_PIN) == LOW) {
     if (seqA_moved) {
       int currentLengthKnobA = readMux(MUX_SIG0, 0);
       lengthA = map(currentLengthKnobA, 0, 1023, 1, 8);
       if (step1 >= lengthA) step1 = 0;
     }
-    
+
     if (seqB_moved) {
       int currentLengthKnobB = readMux(MUX_SIG1, 0);
       lengthB = map(currentLengthKnobB, 0, 1023, 1, 8);
-      if (step2 >= lengthB) step2 = 0;
+      if (step1 >= lengthB) step1 = 0;
+    }
+    
+    if (seqA2_moved) {
+      int currentDirectionKnobA = readMux(MUX_SIG0, 1);
+      directionA = currentDirectionKnobA / 256;
+      if (directionA > 3) directionA = 3;
+      if (directionA == 2) {
+        directionStateA = 1;
+        step1 = 0;
+      }
+    }
+    
+    if (seqB2_moved) {
+      int currentDirectionKnobB = readMux(MUX_SIG1, 1);
+      directionB = currentDirectionKnobB / 256;
+      if (directionB > 3) directionB = 3;
+      if (directionB == 2) {
+        directionStateB = 1;
+        step2 = 0;
+      }
     }
     
     if (nextStepA != 0) {
@@ -352,6 +414,27 @@ void outputSequenceToDAC() {
   } else {
     dac.setChannelValue(MCP4728_CHANNEL_D, seq_b_out, MCP4728_VREF_INTERNAL, MCP4728_GAIN_2X);
   }
+}
+
+int getNextStep(int currentStep, int length, int direction, int &directionState) {
+  if (direction == 0) {
+    return (currentStep + 1) % length;
+  } else if (direction == 1) {
+    return (currentStep - 1 + length) % length;
+  } else if (direction == 2) {
+    int nextStep = currentStep + directionState;
+    if (nextStep >= length - 1) {
+      nextStep = length - 1;
+      directionState = -1;
+    } else if (nextStep <= 0) {
+      nextStep = 0;
+      directionState = 1;
+    }
+    return nextStep;
+  } else if (direction == 3) {
+    return random(0, length);
+  }
+  return currentStep;
 }
 
 void updateScalingVisualization(int value, int r, int g, int b) {
@@ -507,6 +590,38 @@ bool hasSeqKnobMoved(int seqIndex) {
   return moved;
 }
 
+bool hasSeqKnob2Moved(int seqIndex) {
+  bool secondaryMode = (digitalRead(BUTTON_PIN) == LOW);
+
+  unsigned long nowTime = micros();
+  if (nowTime - seqKnob2LastCheck[seqIndex] < POT_CHECK_INTERVAL) {
+    return false;
+  }
+
+  int sigPin = (seqIndex == 0) ? MUX_SIG0 : MUX_SIG1;
+  int currentValue = readMux(sigPin, 1);
+
+  if (abs(currentValue - seqKnob2LastRaw[seqIndex]) <= POT_NOISE_THRESHOLD) {
+    currentValue = seqKnob2LastRaw[seqIndex];
+  }
+  seqKnob2LastRaw[seqIndex] = currentValue;
+
+  bool moved = false;
+  if (secondaryMode) {
+    if (abs(currentValue - seqKnob2LastStableSecondary[seqIndex]) > POT_MOVE_THRESHOLD) {
+      seqKnob2LastStableSecondary[seqIndex] = currentValue;
+      moved = true;
+    }
+  } else {
+    if (abs(currentValue - seqKnob2LastStablePrimary[seqIndex]) > POT_MOVE_THRESHOLD) {
+      seqKnob2LastStablePrimary[seqIndex] = currentValue;
+      moved = true;
+    }
+  }
+
+  seqKnob2LastCheck[seqIndex] = nowTime;
+  return moved;
+}
 
 const int scales[8][36] = {
     // Chromatic scale
